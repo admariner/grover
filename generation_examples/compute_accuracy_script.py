@@ -38,7 +38,7 @@ def score(probs, full_info):
     # MACHINE WRITTEN ARTICLE PAIRED WITH HUMAN WRITTEN ARTICLE
     # For evaluation we want a 50:50 split between human and machine generations, meaning we need to take out the
     # burner part.
-    groups = {k:v for k, v in score_df.groupby('orig_split')}
+    groups = dict(score_df.groupby('orig_split'))
     unpaired_human = groups.pop('train_burner')
 
     machine_v_human = {k: v.set_index('ind30k', drop=True) for k, v in groups['gen'].groupby('labels')}
@@ -51,11 +51,10 @@ def score(probs, full_info):
     ),0)
     combined_acc = np.mean(combined_scores[['machine', 'human']].idxmax(1) == combined_scores['labels'])
 
-    stats = {
+    return {
         'paired_acc': np.mean(machine_vs_human_joined['is_right']),
         'unpaired_acc': combined_acc,
     }
-    return stats
 
 # Compute the validation stats
 val_stats = score(probs, set_to_info['test'])

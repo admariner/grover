@@ -92,8 +92,11 @@ max_batch_size = args.max_batch_size if args.max_batch_size is not None else def
 # factorize args.batch_size = (num_chunks * batch_size_per_chunk) s.t. batch_size_per_chunk < max_batch_size
 num_chunks = int(np.ceil(args.batch_size / max_batch_size))
 batch_size_per_chunk = int(np.ceil(args.batch_size / num_chunks))
-print("\n~~\nbatch size={}, max batch size={}, num chunks={}, batch size per chunk={}\n~~\n".format(
-    args.batch_size, max_batch_size, num_chunks, batch_size_per_chunk), flush=True)
+print(
+    f"\n~~\nbatch size={args.batch_size}, max batch size={max_batch_size}, num chunks={num_chunks}, batch size per chunk={batch_size_per_chunk}\n~~\n",
+    flush=True,
+)
+
 
 # This controls the top p for each generation.
 top_p = np.ones((num_chunks, batch_size_per_chunk), dtype=np.float32) * args.top_p
@@ -103,8 +106,7 @@ with open(args.metadata_fn, 'r') as f:
 
 tf_config = tf.ConfigProto(allow_soft_placement=True)
 
-with tf.Session(config=tf_config, graph=tf.Graph()) as sess, \
-        open(args.out_fn, 'w') as f_out:
+with tf.Session(config=tf_config, graph=tf.Graph()) as sess, open(args.out_fn, 'w') as f_out:
     initial_context = tf.placeholder(tf.int32, [batch_size_per_chunk, None])
     p_for_topp = tf.placeholder(tf.float32, [batch_size_per_chunk])
     eos_token = tf.placeholder(tf.int32, [])
@@ -126,16 +128,18 @@ with tf.Session(config=tf_config, graph=tf.Graph()) as sess, \
 
         if len(context_formatted) >= 1020:
             print(
-                "WARNING: the provided context is {} tokens, but the maximum length Grover was trained on was 1024 tokens.".format(
-                    len(context_formatted)), flush=True)
+                f"WARNING: the provided context is {len(context_formatted)} tokens, but the maximum length Grover was trained on was 1024 tokens.",
+                flush=True,
+            )
+
             context_formatted = context_formatted[:1020]
 
-        context_formatted.append(encoder.__dict__['begin_{}'.format(args.target)])
+        context_formatted.append(encoder.__dict__[f'begin_{args.target}'])
         # Format context end
 
         # Indices we definitely DONT WANT TO PREDICT
         ignore_ids_np = np.array(encoder.special_tokens_onehot)
-        ignore_ids_np[encoder.__dict__['end_{}'.format(args.target)]] = 0
+        ignore_ids_np[encoder.__dict__[f'end_{args.target}']] = 0
 
         gens = []
         gens_raw = []
@@ -143,11 +147,17 @@ with tf.Session(config=tf_config, graph=tf.Graph()) as sess, \
 
         article['top_ps'] = top_p.reshape(-1).tolist()
         for chunk_i in range(num_chunks):
-            tokens_out, probs_out = sess.run([tokens, probs],
-                                             feed_dict={initial_context: [context_formatted] * batch_size_per_chunk,
-                                                        eos_token: encoder.__dict__['end_{}'.format(args.target)],
-                                                        ignore_ids: ignore_ids_np,
-                                                        p_for_topp: top_p[chunk_i]})
+            tokens_out, probs_out = sess.run(
+                [tokens, probs],
+                feed_dict={
+                    initial_context: [context_formatted]
+                    * batch_size_per_chunk,
+                    eos_token: encoder.__dict__[f'end_{args.target}'],
+                    ignore_ids: ignore_ids_np,
+                    p_for_topp: top_p[chunk_i],
+                },
+            )
+
 
             for t_i, p_i in zip(tokens_out, probs_out):
                 extraction = extract_generated_target(output_tokens=t_i, encoder=encoder, target=args.target)
@@ -160,12 +170,12 @@ with tf.Session(config=tf_config, graph=tf.Graph()) as sess, \
                 assert extraction['start_ind'] == len(context_formatted)
                 gen_probs.append(p_i[:extraction['end_ind'] - len(context_formatted) + 1].tolist())
 
-        article['gens_{}'.format(args.target)] = gens
-        article['gensraw_{}'.format(args.target)] = gens_raw
-        article['probs_{}'.format(args.target)] = gen_probs
+        article[f'gens_{args.target}'] = gens
+        article[f'gensraw_{args.target}'] = gens_raw
+        article[f'probs_{args.target}'] = gen_probs
 
         # these were in there for whatever reason...
         article.pop('input_ids_conditional', None)
         article.pop('input_ids_unconditional', None)
         f_out.write(json.dumps(article) + '\n')
-        print("Written {}/{} articles".format(i, len(articles)), flush=True)
+        print(f"Written {i}/{len(articles)} articles", flush=True)

@@ -55,9 +55,7 @@ CONTENT_LENGTH = 100
 
 def _get_split(domain):
     """ You could do this by domain, or not"""
-    if random.random() < TRAIN_PORTION:
-        return 'train'
-    return 'val'
+    return 'train' if random.random() < TRAIN_PORTION else 'val'
 
 
 def get_matching_s3_objects(bucket, prefix='', suffix=''):
@@ -119,9 +117,23 @@ def _could_be_author(author):
         return False
     if '.com' in author_lower:
         return False
-    if author_lower in {'arts', 'politics', 'sports', 'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'}:
-        return False
-    return True
+    return author_lower not in {
+        'arts',
+        'politics',
+        'sports',
+        'january',
+        'february',
+        'march',
+        'april',
+        'may',
+        'june',
+        'july',
+        'august',
+        'september',
+        'october',
+        'november',
+        'december',
+    }
 
 def _fix_notfound_authors(article):
     """
@@ -208,8 +220,7 @@ def fast_article_iterator(cc_name, batch_size=256):
                                                    batch_size=batch_size), total=64000 // batch_size):
         fetcher = Fetcher(workers=16)
         for article_list in fetcher.download(obj_key_batch):
-            for article in article_list:
-                yield article
+            yield from article_list
 
 
 def _is_definitely_unique(article):
@@ -297,7 +308,7 @@ if __name__ == '__main__':
             if hits % 1000 == 0:
                 print(article, flush=True)
 
-        print("Got {} from archive.org".format(hits))
+        print(f"Got {hits} from archive.org")
 
         for cc_name in DUMP_ORDER:
             for article in fast_article_iterator(cc_name):

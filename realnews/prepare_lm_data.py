@@ -145,10 +145,11 @@ def article_iterator(encoder, final_desired_size=1025):
                                                                     unconditional_prob=.35)
                 article['inst_index'] = (l_no // args.num_folds)
                 if article['inst_index'] < 100:
-                    print('---\nINPUT{}. {}\n---\nTokens: {}\n'.format(article['inst_index'],
-                                                                       detokenize(encoder, article['input_ids']),
-                                                                       article['input_ids']
-                                                                       ), flush=True)
+                    print(
+                        f"---\nINPUT{article['inst_index']}. {detokenize(encoder, article['input_ids'])}\n---\nTokens: {article['input_ids']}\n",
+                        flush=True,
+                    )
+
                 if len(article['input_ids']) == 0:
                     continue
                 yield article
@@ -235,5 +236,5 @@ with S3TFRecordWriter(train_file) as train_writer, S3TFRecordWriter(val_file) as
                                                                                        article['input_ids']),
                   flush=True)
         if article['inst_index'] % 1000 == 0:
-            print("{} articles, {} written".format(article['inst_index'], total_written), flush=True)
+            print(f"{article['inst_index']} articles, {total_written} written", flush=True)
 print("DONE UPLOADING", flush=True)

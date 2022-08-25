@@ -24,13 +24,94 @@ PROPAGANDA_SUBDOMAINS = {'wnd.com': True, 'infowars.com': True, 'breitbart.com':
                          'libertywriters.com': True, 'globalresearch.ca': True,
                          }
 
-BANNED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'php', 'css', 'ico', 'xml', 'woff', 'swf', 'jpg', 'svg', 'ttf', 'tif',
-                     'bmp', 'js', 'pdf', 'amp', 'rss', 'mp3', 'eot', 'jsp', 'woff2', 'json', 'com', 'axd', 'php3',
-                     'bin', 'mp4', 'img', 'xhtml', 'dll', 'm4v', 'vov', 'phtml', 'flv', 'pl', 'jpe', 'otf', 'php\'',
-                     'wmv', 'wav', 'xls', 'doc', 'photo', 'gallery', 'bg', 'ece', 'feed', 'xmlhttp', 'video', 'eml',
-                     'xnf', 'prt', 'docx', 'file', 'vpx', 'cur', 'data', 'jhtml', 'xlsx', 'map', 'fb', 'webp', 'ppt',
-                     'rdf', 'bio', 'exe', 'jar', 'net', 'open', 'ogg', 'wma', '7u', 'res', 'dwr', 'pjpeg', 'gz', 'ajax',
-                     'psd', 'zip', 'coffee', 'tabs', 'cls', 'step', 'jp'}
+BANNED_EXTENSIONS = {
+    'png',
+    'jpeg',
+    'gif',
+    'php',
+    'css',
+    'ico',
+    'xml',
+    'woff',
+    'swf',
+    'jpg',
+    'svg',
+    'ttf',
+    'tif',
+    'bmp',
+    'js',
+    'pdf',
+    'amp',
+    'rss',
+    'mp3',
+    'eot',
+    'jsp',
+    'woff2',
+    'json',
+    'com',
+    'axd',
+    'php3',
+    'bin',
+    'mp4',
+    'img',
+    'xhtml',
+    'dll',
+    'm4v',
+    'vov',
+    'phtml',
+    'flv',
+    'pl',
+    'jpe',
+    'otf',
+    'php\'',
+    'wmv',
+    'wav',
+    'xls',
+    'doc',
+    'photo',
+    'gallery',
+    'bg',
+    'ece',
+    'feed',
+    'xmlhttp',
+    'video',
+    'eml',
+    'xnf',
+    'prt',
+    'docx',
+    'file',
+    'vpx',
+    'cur',
+    'data',
+    'jhtml',
+    'xlsx',
+    'map',
+    'fb',
+    'webp',
+    'ppt',
+    'rdf',
+    'bio',
+    'exe',
+    'jar',
+    'net',
+    'open',
+    'ogg',
+    'wma',
+    '7u',
+    'res',
+    'dwr',
+    'pjpeg',
+    'gz',
+    'ajax',
+    'psd',
+    'zip',
+    'coffee',
+    'tabs',
+    'cls',
+    'step',
+    'jp',
+}
+
 
 BANNED_STRINGS = ['slideshow.',
                   'slideshowImage', 'associatedcontent.com',
@@ -69,12 +150,15 @@ def _url_seems_ok(url, domain_to_allowed_subdomains):
 
     # FIRST check if the domain is OK
     ext = tldextract.extract(url)
-    main_domain = ext.domain + '.' + ext.suffix
+    main_domain = f'{ext.domain}.{ext.suffix}'
     allowed_subdomains = domain_to_allowed_subdomains.get(main_domain, None)
     if allowed_subdomains is None:
         return False
 
-    if isinstance(allowed_subdomains, list) and not ext.subdomain in allowed_subdomains:
+    if (
+        isinstance(allowed_subdomains, list)
+        and ext.subdomain not in allowed_subdomains
+    ):
         return False
 
     # Check for banned extensios
@@ -91,7 +175,7 @@ def _url_seems_ok(url, domain_to_allowed_subdomains):
         return False
 
     # Check for banned words
-    if not (is_banned_regex.search(url) is None):
+    if is_banned_regex.search(url) is not None:
         return False
 
     # AT A LATER DATE: we need to check if the URL was banned
@@ -145,11 +229,7 @@ class Article(object):
                 return
 
     def num_empty_fields(self):
-        num_empty = 0
-        for k, v in self.serialize().items():
-            if not v:
-                num_empty += 1
-        return num_empty
+        return sum(not v for k, v in self.serialize().items())
 
     def serialize(self):
         """
@@ -237,7 +317,7 @@ archive_date = args.path.split('/')[1]
 rest = '_'.join(args.path.split('/')[2:])
 out_prefix = 'propaganda-' if args.propaganda else ''
 
-out_key = '{}{}/{}.jsonl'.format(out_prefix, args.path.split('/')[1], rest)
+out_key = f"{out_prefix}{args.path.split('/')[1]}/{rest}.jsonl"
 
 with TemporaryFile(mode='w+b', dir='/home/ubuntu/temp/') as warctemp:
     s3client.download_fileobj('commoncrawl', args.path, warctemp)
