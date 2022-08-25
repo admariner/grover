@@ -185,9 +185,21 @@ def _tokenize_article_pieces(encoder, item):
     assert len(date_split) == 3
     assert date_split[0].isdigit()
 
-    date_txt = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-                'August', 'September', 'October', 'November', 'December'][int(date_split[0]) - 1] + ' {}, {}'.format(
-        date_split[1], date_split[2])
+    date_txt = [
+        'January',
+        'February',
+        'March',
+        'April',
+        'May',
+        'June',
+        'July',
+        'August',
+        'September',
+        'October',
+        'November',
+        'December',
+    ][int(date_split[0]) - 1] + f' {date_split[1]}, {date_split[2]}'
+
     article_pieces['date'] = [encoder.begin_date] + encoder.encode(date_txt) + [encoder.end_date]
 
     # 6/6: authors
@@ -260,10 +272,10 @@ def tokenize_for_grover_training(encoder, item, desired_size=1024, unconditional
 
     # unconditional_prob is probability we only generate the text first, without any metadata
     switch = random.random()
+    chunk_b = []
     if switch < unconditional_prob:
         assignments = {'article': 'a'}
         chunk_a = article_pieces.pop('article')
-        chunk_b = []
         for x in canonical_metadata_order + ['summary']:
             if random.random() > metadata_dropout_prob:
                 chunk_b.extend(article_pieces.pop(x, []))
@@ -272,14 +284,12 @@ def tokenize_for_grover_training(encoder, item, desired_size=1024, unconditional
         # Put everything in chunk_a, without dropout
         assignments = {}
         chunk_a = []
-        chunk_b = []
         for x in canonical_metadata_order + ['article', 'summary']:
             chunk_a.extend(article_pieces.pop(x, []))
             assignments[x] = 'a'
     else:
         assignments = {}
         chunk_a = []
-        chunk_b = []
         for k in canonical_metadata_order + ['article', 'summary']:
             if random.random() < metadata_dropout_prob and k not in ('article', 'title'):
                 pass
@@ -294,11 +304,14 @@ def tokenize_for_grover_training(encoder, item, desired_size=1024, unconditional
     if (len(chunk_a) + len(chunk_b)) <= desired_size:
         return chunk_a + chunk_b
 
-    if (assignments.get('article', '') == 'a') and (len(chunk_b) > 0) and (random.random() < cut_prob):
+    if (
+        assignments.get('article', '') == 'a'
+        and chunk_b
+        and random.random() < cut_prob
+    ):
         return _cut_tokens_to_add_stuff(chunk_a, chunk_b, desired_size, encoder.padding)
 
-    tokens = chunk_a + chunk_b
-    return tokens
+    return chunk_a + chunk_b
 
 
 def detokenize(encoder, tokens):
@@ -308,8 +321,7 @@ def detokenize(encoder, tokens):
 #######################################
 
 def create_int_feature(values):
-    feature = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
-    return feature
+    return tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
 
 
 def sliding_window(article, max_seq_length, pad_token):
@@ -379,11 +391,7 @@ def extract_generated_target(output_tokens, encoder, target):
     assert output_tokens.ndim == 1
 
     start_tokens = output_tokens == encoder.__dict__[f'begin_{target}']
-    if np.any(start_tokens):
-        start_ind = np.argmax(start_tokens) + 1
-    else:
-        start_ind = 0
-
+    start_ind = np.argmax(start_tokens) + 1 if np.any(start_tokens) else 0
     end_tokens = output_tokens == encoder.__dict__[f'end_{target}']
     if np.any(end_tokens):
         end_ind = np.argmax(end_tokens)
@@ -399,4 +407,4 @@ def extract_generated_target(output_tokens, encoder, target):
 
 if __name__ == '__main__':
     encoder = get_encoder()
-    print("VOCAB SIZE IS {}".format(len(encoder.encoder)))
+    print(f"VOCAB SIZE IS {len(encoder.encoder)}")

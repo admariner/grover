@@ -102,7 +102,7 @@ class gcloudwriter():
 
     def __exit__(self, *args):
         self.tempfile.flush()
-        print("UPLOADING TO {}".format(self.gcloud_name), flush=True)
+        print(f"UPLOADING TO {self.gcloud_name}", flush=True)
         self.blob.upload_from_filename(self.tempfile.name)
         self.tempfile.close()
 
@@ -118,10 +118,7 @@ def ind_where(array: np.ndarray, target, return_first_match=True, default_value=
     assert array.ndim == 1
     matching_inds = np.where(array == target)[0]
     if len(matching_inds) > 0:
-        if return_first_match:
-            return int(matching_inds[0])
-        else:
-            return int(matching_inds[-1])
+        return int(matching_inds[0]) if return_first_match else int(matching_inds[-1])
     return default_value
 
 
@@ -138,7 +135,7 @@ def main(_):
 
     tf.logging.info("*** Input Files ***")
     for input_file in input_files:
-        tf.logging.info("  %s" % input_file)
+        tf.logging.info(f"  {input_file}")
 
     tpu_cluster_resolver = None
     if FLAGS.use_tpu and FLAGS.tpu_name:
@@ -183,7 +180,10 @@ def main(_):
         evaluate_for_fixed_number_of_steps=False,
         num_cpu_threads=1,
         is_training=False)
-    result = [x for x in estimator.predict(input_fn=eval_input_fn, yield_single_examples=True)]
+    result = list(
+        estimator.predict(input_fn=eval_input_fn, yield_single_examples=True)
+    )
+
     cats = sorted(result[0].keys())
     result_stack = {cat: np.stack([x[cat] for x in result]) for cat in cats}
 
